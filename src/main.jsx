@@ -25,6 +25,7 @@ import {
   Megaphone,
   Menu,
   Microscope,
+  Moon,
   Music2,
   Phone,
   Play,
@@ -32,6 +33,7 @@ import {
   Share2,
   ShieldCheck,
   Star,
+  Sun,
   Trophy,
   Users,
   Video,
@@ -237,11 +239,20 @@ function Link({ to, className, children, ...props }) {
 function App() {
   const route = useRoute();
   const page = useMemo(() => resolvePage(route), [route]);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'light';
+    return window.localStorage.getItem('srk-theme') || 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem('srk-theme', theme);
+  }, [theme]);
 
   return (
     <div className="min-h-screen bg-mist text-ink">
       <TopBar />
-      <Header activePath={page.activePath} />
+      <Header activePath={page.activePath} theme={theme} onThemeToggle={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))} />
       <MobileQuickActions />
       <main>{page.node}</main>
       <BackToTop />
@@ -285,7 +296,7 @@ function resolvePage(route) {
 function TopBar() {
   return (
     <div className="topbar bg-ink text-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2 text-xs font-semibold sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-2 text-xs font-semibold sm:px-6 lg:px-10">
         <Link to="/admissions" className="flex items-center gap-2 text-gold">
           <Award size={15} /> {school.rating} Rated English Medium School
         </Link>
@@ -299,14 +310,14 @@ function TopBar() {
   );
 }
 
-function Header({ activePath }) {
+function Header({ activePath, theme, onThemeToggle }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [activePath]);
 
   return (
     <header className="site-header sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        <Link to="/" className="flex min-w-0 items-center gap-3">
+      <div className="header-inner mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
+        <Link to="/" className="brand-link flex min-w-0 items-center gap-3">
           <div className="logo-mark">
             <img src={logoImage} alt={`${school.shortName} logo`} />
           </div>
@@ -315,11 +326,20 @@ function Header({ activePath }) {
             <p className="mt-1 truncate text-[11px] font-semibold text-slate-500 sm:text-xs">Sarvepalli Radhakrishnan</p>
           </div>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm font-bold text-slate-700 lg:flex">
+        <nav className="main-nav hidden items-center text-sm font-bold text-slate-700 lg:flex">
           {navItems.map((item) => <NavLink key={item.path} item={item} activePath={activePath} />)}
         </nav>
-        <div className="flex items-center gap-2">
-          <Link to="/enquiry" className="hidden rounded-md bg-ink px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-ocean sm:inline-flex">
+        <div className="header-actions flex items-center gap-2">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={onThemeToggle}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
+          </button>
+          <Link to="/enquiry" className="enquiry-link hidden rounded-md bg-ink px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-ocean sm:inline-flex">
             Enquiry Now
           </Link>
           <button className="grid h-11 w-11 place-items-center rounded-md border border-slate-200 text-ink lg:hidden" aria-label="Open menu" onClick={() => setOpen(!open)}>
@@ -418,8 +438,8 @@ function Hero() {
         <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(7,26,69,0.08),transparent_45%,rgba(7,134,111,0.16))]" />
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-mist to-transparent" />
       </div>
-      <div className="hero-content relative mx-auto grid min-h-[680px] max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1fr_0.78fr] lg:px-8">
-        <div className="max-w-xl animate-rise">
+      <div className="hero-content relative mx-auto grid min-h-[680px] max-w-[1500px] items-center gap-6 px-4 py-14 sm:px-6 lg:grid-cols-[0.92fr_1fr] lg:px-10 xl:gap-8">
+        <div className="hero-copy max-w-[42rem] animate-rise">
           <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-xs font-extrabold text-leaf shadow-sm ring-1 ring-emerald-100 backdrop-blur sm:text-sm">
             <CheckCircle2 size={16} /> English medium • Co-ed • Reddivaripalem, Tadipatri
           </span>
@@ -915,17 +935,34 @@ function EnquiryPage({ mode }) {
 }
 
 function EnquiryForm({ title }) {
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const message = [
+      `*${title}*`,
+      '',
+      `*School:* ${school.name}`,
+      `*Parent Name:* ${data.parentName}`,
+      `*Mobile Number:* ${data.mobileNumber}`,
+      `*Student Name:* ${data.studentName}`,
+      `*Class:* ${data.className}`,
+      data.message ? `*Message:* ${data.message}` : null,
+    ].filter(Boolean).join('\n');
+    const whatsappUrl = `https://wa.me/919059461389?text=${encodeURIComponent(message)}`;
+    window.location.href = whatsappUrl;
+  };
+
   return (
-    <form className="panel grid gap-4" onSubmit={(event) => { event.preventDefault(); navigate('/thank-you'); }}>
+    <form className="panel grid gap-4" onSubmit={handleSubmit}>
       <h2 className="text-2xl font-black">{title}</h2>
       <div className="grid gap-4 sm:grid-cols-2">
-        <input className="field" placeholder="Parent name" required />
-        <input className="field" placeholder="Mobile number" required />
-        <input className="field" placeholder="Student name" required />
-        <select className="field" defaultValue="" required><option value="" disabled>Select class</option><option>Nursery</option><option>Class I</option><option>Class VI</option><option>Class IX</option><option>Class XI</option></select>
+        <input className="field" name="parentName" placeholder="Parent name" autoComplete="name" required />
+        <input className="field" name="mobileNumber" placeholder="Mobile number" autoComplete="tel" required />
+        <input className="field" name="studentName" placeholder="Student name" required />
+        <select className="field" name="className" defaultValue="" required><option value="" disabled>Select class</option><option>Nursery</option><option>Class I</option><option>Class VI</option><option>Class IX</option><option>Class XI</option></select>
       </div>
-      <textarea className="field min-h-28" placeholder="Message" />
-      <button type="submit" className="btn-primary w-full border-0 sm:w-fit">Submit Enquiry <Send size={18} /></button>
+      <textarea className="field min-h-28" name="message" placeholder="Message" />
+      <button type="submit" className="btn-primary w-full border-0 sm:w-fit">Send via WhatsApp <Send size={18} /></button>
     </form>
   );
 }
